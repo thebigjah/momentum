@@ -221,6 +221,61 @@
     line-height: 1.6;
   }
   footer a { color: var(--brass-deep); text-decoration: none; }
+
+  .scripture {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px dashed var(--border);
+    font-family: Georgia, serif;
+    font-style: italic;
+    color: var(--ink-soft);
+    font-size: 0.95rem;
+    line-height: 1.5;
+  }
+  .scripture .ref {
+    display: block;
+    margin-top: 0.4rem;
+    font-style: normal;
+    font-size: 0.8rem;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .heatmap {
+    display: grid;
+    grid-template-columns: repeat(53, 1fr);
+    gap: 2px;
+    margin-bottom: 0.5rem;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  .hm {
+    aspect-ratio: 1;
+    border-radius: 2px;
+    background: var(--border);
+    min-width: 8px;
+    min-height: 8px;
+  }
+  .hm-0 { background: #ebe4d6; }
+  .hm-1 { background: #b8d4a8; }
+  .hm-2 { background: #7ba861; }
+  .hm-3 { background: #4a7c3d; }
+  .hm-missed { background: var(--missed-bg); border: 1px solid var(--missed); }
+  .heatmap-legend {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.75rem;
+    color: var(--ink-faint);
+    justify-content: flex-end;
+  }
+  .heatmap-legend .hm {
+    width: 10px;
+    height: 10px;
+    min-width: 10px;
+    min-height: 10px;
+  }
 </style>
 </head>
 <body>
@@ -237,11 +292,25 @@
   <h2 id="today-heading">Today's intention</h2>
   <div class="today-date" id="today-date"></div>
   <div id="today-body"></div>
+  <div id="scripture" class="scripture"></div>
 </div>
 
 <div class="panel">
   <h2>How you've shown up</h2>
   <div class="stats" id="stats"></div>
+</div>
+
+<div class="panel">
+  <h2>Year at a glance</h2>
+  <div id="heatmap" class="heatmap"></div>
+  <div class="heatmap-legend">
+    <span>less</span>
+    <span class="hm hm-0"></span>
+    <span class="hm hm-1"></span>
+    <span class="hm hm-2"></span>
+    <span class="hm hm-3"></span>
+    <span>more</span>
+  </div>
 </div>
 
 <div class="panel">
@@ -284,6 +353,23 @@
 'use strict';
 
 const STORAGE_KEY = 'momentum.v1';
+
+const SCRIPTURES = [
+  { text: "Let your 'yes' be 'yes,' and your 'no,' 'no.'", ref: "Matthew 5:37" },
+  { text: "Whatever you do, work at it with all your heart, as working for the Lord.", ref: "Colossians 3:23" },
+  { text: "The plans of the diligent lead to profit as surely as haste leads to poverty.", ref: "Proverbs 21:5" },
+  { text: "Commit to the Lord whatever you do, and he will establish your plans.", ref: "Proverbs 16:3" },
+  { text: "Whoever can be trusted with very little can also be trusted with much.", ref: "Luke 16:10" },
+  { text: "Be still, and know that I am God.", ref: "Psalm 46:10" },
+  { text: "He who began a good work in you will carry it on to completion.", ref: "Philippians 1:6" },
+  { text: "Do not despise these small beginnings, for the Lord rejoices to see the work begin.", ref: "Zechariah 4:10" },
+  { text: "Let us not grow weary of doing good, for in due season we will reap, if we do not give up.", ref: "Galatians 6:9" },
+  { text: "Trust in the Lord with all your heart, and do not lean on your own understanding.", ref: "Proverbs 3:5" },
+  { text: "Run in such a way as to get the prize.", ref: "1 Corinthians 9:24" },
+  { text: "His mercies are new every morning; great is your faithfulness.", ref: "Lamentations 3:23" },
+  { text: "I have fought the good fight, I have finished the race, I have kept the faith.", ref: "2 Timothy 4:7" },
+  { text: "We are God's handiwork, created in Christ Jesus to do good works.", ref: "Ephesians 2:10" },
+];
 const todayKey = () => {
   const d = new Date();
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
@@ -572,10 +658,45 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
+function renderScripture() {
+  // Same verse for the whole day, deterministic from date
+  const seed = todayKey().split('-').reduce((a,b) => a + parseInt(b,10), 0);
+  const v = SCRIPTURES[seed % SCRIPTURES.length];
+  document.getElementById('scripture').innerHTML = `"${escapeHtml(v.text)}"<span class="ref">${escapeHtml(v.ref)}</span>`;
+}
+
+function renderHeatmap() {
+  const el = document.getElementById('heatmap');
+  el.innerHTML = '';
+  const days = [];
+  const d = new Date();
+  for (let i = 0; i < 365; i++) {
+    const k = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    days.unshift({ key: k, entry: state[k] });
+    d.setDate(d.getDate()-1);
+  }
+  days.forEach(({key, entry}) => {
+    const cell = document.createElement('div');
+    let cls = 'hm hm-0';
+    let title = fmtDate(key) + ' — no intention';
+    if (entry) {
+      if (entry.status === 'done') { cls = 'hm hm-3'; title = fmtDate(key) + ' — done: ' + entry.intention; }
+      else if (entry.status === 'pending') { cls = 'hm hm-1'; title = fmtDate(key) + ' — in progress: ' + entry.intention; }
+      else if (entry.status === 'missed') { cls = 'hm hm-missed'; title = fmtDate(key) + ' — missed: ' + entry.intention; }
+      else { cls = 'hm hm-1'; title = fmtDate(key) + ' — ' + entry.intention; }
+    }
+    cell.className = cls;
+    cell.title = title;
+    el.appendChild(cell);
+  });
+}
+
 function renderAll() {
   settleYesterdayIfNeeded();
   renderToday();
+  renderScripture();
   renderStats();
+  renderHeatmap();
   renderHistory();
 }
 
