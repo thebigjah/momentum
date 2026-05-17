@@ -276,6 +276,52 @@
     min-width: 10px;
     min-height: 10px;
   }
+
+  .category-picker {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    margin-top: 0.6rem;
+  }
+  .cat-btn {
+    background: transparent;
+    color: var(--ink-soft);
+    border: 1px solid var(--border);
+    padding: 0.35rem 0.7rem;
+    font-size: 0.8rem;
+    border-radius: 999px;
+  }
+  .cat-btn:hover {
+    border-color: var(--cat-color, var(--ink-soft));
+    color: var(--ink);
+    background: transparent;
+  }
+  .cat-btn.selected {
+    background: var(--cat-color, var(--ink));
+    color: #fff;
+    border-color: var(--cat-color, var(--ink));
+  }
+  .cat-badge {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-right: 0.5rem;
+    vertical-align: middle;
+  }
+
+  .evening-nudge {
+    background: #fff4d6;
+    border-left: 3px solid #c9803a;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    margin-bottom: 0.85rem;
+    color: #6b4a1a;
+    font-size: 0.9rem;
+  }
 </style>
 </head>
 <body>
@@ -354,6 +400,15 @@
 
 const STORAGE_KEY = 'momentum.v1';
 
+const CATEGORIES = [
+  { id: 'faith',    label: 'Faith',     color: '#8a6a3a' },
+  { id: 'health',   label: 'Health',    color: '#4a7c3d' },
+  { id: 'relate',   label: 'Relate',    color: '#a8488e' },
+  { id: 'work',     label: 'Work',      color: '#3b6da6' },
+  { id: 'learn',    label: 'Learn',     color: '#c9803a' },
+];
+const CAT_MAP = Object.fromEntries(CATEGORIES.map(c => [c.id, c]));
+
 const SCRIPTURES = [
   { text: "Let your 'yes' be 'yes,' and your 'no,' 'no.'", ref: "Matthew 5:37" },
   { text: "Whatever you do, work at it with all your heart, as working for the Lord.", ref: "Colossians 3:23" },
@@ -421,16 +476,28 @@ function renderToday() {
     heading.textContent = "Today's intention";
     bodyEl.innerHTML = `
       <textarea id="intention-input" class="intention-input" placeholder="One thing you'll do today. Specific. Visible by end of day."></textarea>
+      <div class="category-picker">
+        ${CATEGORIES.map(c => `<button class="cat-btn" data-cat="${c.id}" style="--cat-color:${c.color}">${c.label}</button>`).join('')}
+      </div>
       <div class="row">
         <button id="set-btn">Set intention</button>
       </div>
     `;
     document.getElementById('set-btn').addEventListener('click', setIntention);
+    document.querySelectorAll('.cat-btn').forEach(b => b.addEventListener('click', e => {
+      document.querySelectorAll('.cat-btn').forEach(x => x.classList.remove('selected'));
+      e.target.classList.add('selected');
+    }));
     document.getElementById('intention-input').focus();
   } else if (entry.status === 'pending') {
     heading.textContent = "Today's intention — in progress";
+    const nudge = eveningNudge();
+    const catBadge = entry.category && CAT_MAP[entry.category]
+      ? `<span class="cat-badge" style="background:${CAT_MAP[entry.category].color}">${CAT_MAP[entry.category].label}</span>`
+      : '';
     bodyEl.innerHTML = `
-      <div class="intention-display">${escapeHtml(entry.intention)}</div>
+      ${nudge ? `<div class="evening-nudge">${escapeHtml(nudge)}</div>` : ''}
+      <div class="intention-display">${catBadge}${escapeHtml(entry.intention)}</div>
       <div class="row">
         <button class="done" id="done-btn">I did it</button>
         <button class="missed" id="missed-btn">I didn't</button>
@@ -443,9 +510,12 @@ function renderToday() {
   } else {
     const verdictText = entry.status === 'done' ? 'Done. Witnessed.' : 'Not today. Tomorrow is new.';
     heading.textContent = "Today's intention — settled";
+    const catBadge = entry.category && CAT_MAP[entry.category]
+      ? `<span class="cat-badge" style="background:${CAT_MAP[entry.category].color}">${CAT_MAP[entry.category].label}</span>`
+      : '';
     bodyEl.innerHTML = `
       <div class="verdict ${entry.status}">${verdictText}</div>
-      <div class="intention-display">${escapeHtml(entry.intention)}</div>
+      <div class="intention-display">${catBadge}${escapeHtml(entry.intention)}</div>
       <div class="row">
         <button class="ghost" id="reopen-btn">Reopen</button>
       </div>
@@ -463,9 +533,21 @@ function setIntention() {
   const text = input.value.trim();
   if (!text) { input.focus(); return; }
   if (text.length > 280) { alert('Keep it under 280 chars. One intention.'); return; }
-  state[todayKey()] = { intention: text, status: 'pending', setAt: new Date().toISOString() };
+  const selectedCat = document.querySelector('.cat-btn.selected');
+  const category = selectedCat ? selectedCat.dataset.cat : null;
+  state[todayKey()] = { intention: text, category, status: 'pending', setAt: new Date().toISOString() };
   saveState(state);
   renderAll();
+}
+
+function eveningNudge() {
+  const key = todayKey();
+  const entry = state[key];
+  if (!entry || entry.status !== 'pending') return null;
+  const now = new Date();
+  const hour = now.getHours();
+  if (hour < 19) return null;
+  return `Evening check: still pending. Did you do it?`;
 }
 
 function markStatus(status) {
