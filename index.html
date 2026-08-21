@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Momentum, one intention a day, witnessed | Elijah Purcell</title>
 <meta name="description" content="One intention per day. Friends witness it. End of day: done or not. No streak shaming, no leaderboards. Just witness. By Elijah Purcell, Purcell Ventures LLC.">
-<meta property="og:title" content="Momentum — one intention a day, witnessed">
+<meta property="og:title" content="Momentum, one intention a day, witnessed">
 <meta property="og:description" content="One intention per day. Friends witness it. No streak shaming. Just witness.">
 <meta property="og:type" content="website">
 <style>
@@ -459,7 +459,7 @@ function settleYesterdayIfNeeded() {
   const yk = yesterdayKey();
   if (state[yk] && state[yk].status === 'pending') {
     // Auto-settle as missed if user didn't mark anything
-    // But only if more than 24h has passed since setAt — give grace
+    // But only if more than 24h has passed since setAt, give grace
     state[yk].status = 'unsettled';
   }
   saveState(state);
@@ -492,7 +492,7 @@ function renderToday() {
     }));
     document.getElementById('intention-input').focus();
   } else if (entry.status === 'pending') {
-    heading.textContent = "Today's intention — in progress";
+    heading.textContent = "Today's intention, in progress";
     const nudge = eveningNudge();
     const catBadge = entry.category && CAT_MAP[entry.category]
       ? `<span class="cat-badge" style="background:${CAT_MAP[entry.category].color}">${CAT_MAP[entry.category].label}</span>`
@@ -511,7 +511,7 @@ function renderToday() {
     document.getElementById('edit-btn').addEventListener('click', editToday);
   } else {
     const verdictText = entry.status === 'done' ? 'Done. Witnessed.' : 'Not today. Tomorrow is new.';
-    heading.textContent = "Today's intention — settled";
+    heading.textContent = "Today's intention, settled";
     const catBadge = entry.category && CAT_MAP[entry.category]
       ? `<span class="cat-badge" style="background:${CAT_MAP[entry.category].color}">${CAT_MAP[entry.category].label}</span>`
       : '';
@@ -762,12 +762,12 @@ function renderHeatmap() {
   days.forEach(({key, entry}) => {
     const cell = document.createElement('div');
     let cls = 'hm hm-0';
-    let title = fmtDate(key) + ' — no intention';
+    let title = fmtDate(key) + ', no intention';
     if (entry) {
-      if (entry.status === 'done') { cls = 'hm hm-3'; title = fmtDate(key) + ' — done: ' + entry.intention; }
-      else if (entry.status === 'pending') { cls = 'hm hm-1'; title = fmtDate(key) + ' — in progress: ' + entry.intention; }
-      else if (entry.status === 'missed') { cls = 'hm hm-missed'; title = fmtDate(key) + ' — missed: ' + entry.intention; }
-      else { cls = 'hm hm-1'; title = fmtDate(key) + ' — ' + entry.intention; }
+      if (entry.status === 'done') { cls = 'hm hm-3'; title = fmtDate(key) + ', done: ' + entry.intention; }
+      else if (entry.status === 'pending') { cls = 'hm hm-1'; title = fmtDate(key) + ', in progress: ' + entry.intention; }
+      else if (entry.status === 'missed') { cls = 'hm hm-missed'; title = fmtDate(key) + ', missed: ' + entry.intention; }
+      else { cls = 'hm hm-1'; title = fmtDate(key) + ', ' + entry.intention; }
     }
     cell.className = cls;
     cell.title = title;
